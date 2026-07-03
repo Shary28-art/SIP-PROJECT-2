@@ -1,0 +1,1693 @@
+import { useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip,
+  LineChart, Line, CartesianGrid,
+} from "recharts";
+import {
+  Brain, Upload, Users, BarChart2, Search, Filter, Download,
+  ChevronRight, Star, AlertCircle, CheckCircle, XCircle,
+  FileText, Zap, Award, TrendingUp, Clock, Mail, Phone,
+  GraduationCap, Briefcase, Code, Globe, ChevronDown,
+  LayoutDashboard, Settings, Bell, Menu, X, Eye, Trash2,
+  ArrowUpRight, Cpu, Target, Layers, MessageSquare, RefreshCw,
+} from "lucide-react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Skill {
+  name: string;
+  level: "expert" | "proficient" | "familiar";
+}
+
+interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  title: string;
+  experience: number;
+  education: string;
+  university: string;
+  matchScore: number;
+  atsScore: number;
+  qualityScore: number;
+  skills: Skill[];
+  missingSkills: string[];
+  matchingSkills: string[];
+  certifications: string[];
+  projects: string[];
+  languages: string[];
+  summary: string;
+  recommendation: "Highly Recommended" | "Recommended" | "Not Recommended";
+  uploadedAt: string;
+  status: "shortlisted" | "pending" | "rejected";
+  interviewQuestions: string[];
+  salaryEstimate: string;
+  softSkills: string[];
+}
+
+type Page = "dashboard" | "upload" | "candidates" | "analysis" | "settings";
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+
+const JOB_DESCRIPTION = `Senior Machine Learning Engineer
+
+We are seeking a Senior ML Engineer to build and scale AI systems.
+
+Required Skills:
+- Python (5+ years), TensorFlow, PyTorch
+- Transformer models, BERT, GPT fine-tuning
+- MLOps, Docker, Kubernetes
+- SQL, NoSQL databases
+- REST API development with FastAPI or Flask
+- Cloud platforms (AWS/GCP/Azure)
+- Data pipeline orchestration (Airflow, Kubeflow)
+- NLP, Computer Vision experience
+
+Nice to have:
+- Reinforcement Learning
+- Spark, distributed computing
+- React or Vue for ML dashboards
+
+Education: B.S./M.S. in Computer Science, AI, or related field
+Experience: 4+ years in applied machine learning`;
+
+const CANDIDATES: Candidate[] = [
+  {
+    id: "c1",
+    name: "Aryan Mehta",
+    email: "aryan.mehta@gmail.com",
+    phone: "+91 98765 43210",
+    location: "Bangalore, India",
+    title: "Senior ML Engineer",
+    experience: 6,
+    education: "M.Tech in AI",
+    university: "IIT Bombay",
+    matchScore: 94,
+    atsScore: 91,
+    qualityScore: 88,
+    skills: [
+      { name: "Python", level: "expert" },
+      { name: "TensorFlow", level: "expert" },
+      { name: "PyTorch", level: "expert" },
+      { name: "BERT / Transformers", level: "proficient" },
+      { name: "Docker", level: "proficient" },
+      { name: "AWS", level: "proficient" },
+      { name: "FastAPI", level: "expert" },
+      { name: "Kubernetes", level: "familiar" },
+    ],
+    matchingSkills: ["Python", "TensorFlow", "PyTorch", "BERT", "Docker", "FastAPI", "AWS", "SQL"],
+    missingSkills: ["Airflow", "Reinforcement Learning"],
+    certifications: ["AWS Certified ML Specialty", "Google Cloud Professional"],
+    projects: ["Real-time fraud detection pipeline (10M events/day)", "Multilingual NLP chatbot deployed at scale"],
+    languages: ["English", "Hindi"],
+    summary: "Aryan brings 6 years of deep ML expertise with proven production deployments. His transformer fine-tuning work and AWS experience align strongly with the role. Slight gap in orchestration tools (Airflow) but compensated by exceptional Python and PyTorch depth.",
+    recommendation: "Highly Recommended",
+    uploadedAt: "2026-07-01T09:15:00Z",
+    status: "shortlisted",
+    interviewQuestions: [
+      "Describe your experience fine-tuning BERT for a downstream task.",
+      "How do you approach model versioning in a production MLOps pipeline?",
+      "Walk me through your fraud detection architecture — what were the latency constraints?",
+    ],
+    salaryEstimate: "₹28–36 LPA",
+    softSkills: ["Leadership", "Problem Solving", "Communication", "Mentoring"],
+  },
+  {
+    id: "c2",
+    name: "Priya Sharma",
+    email: "priya.sharma@outlook.com",
+    phone: "+91 87654 32109",
+    location: "Hyderabad, India",
+    title: "ML Research Engineer",
+    experience: 4,
+    education: "B.Tech CSE + M.S. ML",
+    university: "BITS Pilani / CMU",
+    matchScore: 87,
+    atsScore: 84,
+    qualityScore: 82,
+    skills: [
+      { name: "Python", level: "expert" },
+      { name: "PyTorch", level: "expert" },
+      { name: "NLP", level: "expert" },
+      { name: "FastAPI", level: "proficient" },
+      { name: "GCP", level: "proficient" },
+      { name: "Docker", level: "familiar" },
+      { name: "Kubernetes", level: "familiar" },
+    ],
+    matchingSkills: ["Python", "PyTorch", "NLP", "FastAPI", "GCP", "Docker"],
+    missingSkills: ["TensorFlow", "Airflow", "Kubernetes (production)"],
+    certifications: ["DeepLearning.AI Specialization", "GCP Associate Cloud Engineer"],
+    projects: ["Semantic search engine over 2M documents", "GPT-4 fine-tune for legal document summarization"],
+    languages: ["English", "Hindi", "Telugu"],
+    summary: "Priya has strong NLP fundamentals and research-grade PyTorch skills. Her GCP expertise is a solid asset. TensorFlow gap is manageable given PyTorch depth. Would excel in the NLP-heavy portions of the role.",
+    recommendation: "Highly Recommended",
+    uploadedAt: "2026-07-01T10:30:00Z",
+    status: "shortlisted",
+    interviewQuestions: [
+      "How did you approach evaluation for your legal summarization model?",
+      "What techniques did you use for semantic search indexing at scale?",
+      "How would you migrate a PyTorch model to a TensorFlow serving stack?",
+    ],
+    salaryEstimate: "₹22–28 LPA",
+    softSkills: ["Research Rigor", "Collaboration", "Written Communication"],
+  },
+  {
+    id: "c3",
+    name: "Rohan Verma",
+    email: "rohan.verma@proton.me",
+    phone: "+91 76543 21098",
+    location: "Pune, India",
+    title: "Data Scientist",
+    experience: 3,
+    education: "B.E. CS",
+    university: "Pune University",
+    matchScore: 72,
+    atsScore: 68,
+    qualityScore: 71,
+    skills: [
+      { name: "Python", level: "proficient" },
+      { name: "Scikit-learn", level: "expert" },
+      { name: "SQL", level: "expert" },
+      { name: "TensorFlow", level: "familiar" },
+      { name: "Flask", level: "proficient" },
+      { name: "AWS (basic)", level: "familiar" },
+    ],
+    matchingSkills: ["Python", "TensorFlow", "SQL", "Flask", "AWS"],
+    missingSkills: ["PyTorch", "Kubernetes", "Airflow", "Transformers", "Docker"],
+    certifications: ["AWS Cloud Practitioner", "Coursera ML Certificate"],
+    projects: ["Customer churn prediction dashboard", "Sales forecasting model (XGBoost)"],
+    languages: ["English", "Hindi", "Marathi"],
+    summary: "Rohan shows solid traditional ML skills but limited exposure to deep learning and modern MLOps tooling. The role requires more advanced transformer expertise and orchestration knowledge. Good foundation — with 12–18 months of growth, could be a strong fit.",
+    recommendation: "Recommended",
+    uploadedAt: "2026-07-01T11:00:00Z",
+    status: "pending",
+    interviewQuestions: [
+      "How would you approach adding transformer-based NLP to your current stack?",
+      "Describe your experience with containerizing ML models.",
+      "What's your plan for bridging the gap from Scikit-learn to PyTorch?",
+    ],
+    salaryEstimate: "₹14–18 LPA",
+    softSkills: ["Analytical Thinking", "Detail-Oriented", "Team Player"],
+  },
+  {
+    id: "c4",
+    name: "Sneha Kapoor",
+    email: "sneha.k@icloud.com",
+    phone: "+91 65432 10987",
+    location: "Mumbai, India",
+    title: "Full-Stack + ML Engineer",
+    experience: 5,
+    education: "B.Tech IT",
+    university: "VJTI Mumbai",
+    matchScore: 81,
+    atsScore: 79,
+    qualityScore: 84,
+    skills: [
+      { name: "Python", level: "expert" },
+      { name: "PyTorch", level: "proficient" },
+      { name: "React", level: "expert" },
+      { name: "FastAPI", level: "expert" },
+      { name: "Docker", level: "proficient" },
+      { name: "MongoDB", level: "proficient" },
+      { name: "AWS", level: "proficient" },
+    ],
+    matchingSkills: ["Python", "PyTorch", "FastAPI", "Docker", "AWS", "React", "MongoDB"],
+    missingSkills: ["TensorFlow", "Kubernetes", "Airflow", "BERT fine-tuning"],
+    certifications: ["AWS Solutions Architect Associate", "Meta React Developer"],
+    projects: ["End-to-end ML platform with React dashboard", "Recommendation engine for e-commerce (2M users)"],
+    languages: ["English", "Hindi"],
+    summary: "Sneha's full-stack depth combined with solid ML skills makes her unique. The React bonus is valuable for building ML dashboards. Kubernetes and Airflow exposure needed, but her architecture instincts are excellent.",
+    recommendation: "Recommended",
+    uploadedAt: "2026-07-01T13:45:00Z",
+    status: "shortlisted",
+    interviewQuestions: [
+      "How did you architect the ML platform — what were the latency requirements?",
+      "Describe the recommendation engine — collaborative filtering, content-based, or hybrid?",
+      "How do you balance frontend polish with backend ML model accuracy?",
+    ],
+    salaryEstimate: "₹20–26 LPA",
+    softSkills: ["Ownership", "Cross-functional Collaboration", "User Empathy"],
+  },
+  {
+    id: "c5",
+    name: "Kiran Reddy",
+    email: "kiran.reddy@techmail.io",
+    phone: "+91 54321 09876",
+    location: "Chennai, India",
+    title: "Junior ML Engineer",
+    experience: 1,
+    education: "B.E. ECE",
+    university: "Anna University",
+    matchScore: 48,
+    atsScore: 45,
+    qualityScore: 52,
+    skills: [
+      { name: "Python", level: "familiar" },
+      { name: "TensorFlow", level: "familiar" },
+      { name: "Pandas", level: "proficient" },
+      { name: "MySQL", level: "proficient" },
+    ],
+    matchingSkills: ["Python", "TensorFlow", "SQL"],
+    missingSkills: ["PyTorch", "Docker", "Kubernetes", "FastAPI", "Cloud platforms", "Transformers", "Airflow"],
+    certifications: ["Coursera DL Specialization (in progress)"],
+    projects: ["MNIST digit classifier", "House price prediction (Kaggle)"],
+    languages: ["English", "Telugu"],
+    summary: "Kiran shows early promise but the gap to senior requirements is substantial. At 1 year of experience, lacks production ML, cloud, and MLOps exposure. Not a fit for this senior role — recommend for a junior or internship pipeline instead.",
+    recommendation: "Not Recommended",
+    uploadedAt: "2026-07-01T14:20:00Z",
+    status: "rejected",
+    interviewQuestions: [
+      "What's your plan for building cloud and MLOps skills over the next year?",
+    ],
+    salaryEstimate: "₹6–9 LPA",
+    softSkills: ["Eagerness to Learn", "Curiosity"],
+  },
+  {
+    id: "c6",
+    name: "Dev Patel",
+    email: "dev.patel@gmail.com",
+    phone: "+91 43210 98765",
+    location: "Ahmedabad, India",
+    title: "MLOps Engineer",
+    experience: 4,
+    education: "M.S. Computer Science",
+    university: "University of Southern California",
+    matchScore: 78,
+    atsScore: 82,
+    qualityScore: 75,
+    skills: [
+      { name: "Python", level: "expert" },
+      { name: "Docker", level: "expert" },
+      { name: "Kubernetes", level: "expert" },
+      { name: "Airflow", level: "expert" },
+      { name: "MLflow", level: "proficient" },
+      { name: "AWS", level: "proficient" },
+      { name: "TensorFlow", level: "familiar" },
+    ],
+    matchingSkills: ["Python", "Docker", "Kubernetes", "Airflow", "AWS", "TensorFlow"],
+    missingSkills: ["PyTorch", "Transformers", "FastAPI (REST)", "NLP depth"],
+    certifications: ["CKA - Certified Kubernetes Administrator", "AWS DevOps Professional"],
+    projects: ["ML model serving platform (1000 req/s)", "Automated retraining pipeline with drift detection"],
+    languages: ["English", "Gujarati", "Hindi"],
+    summary: "Dev's MLOps expertise is exceptional and fills a real gap in most teams. Kubernetes, Airflow, and AWS depth are exactly what the role needs for infrastructure. Weaker on the modeling/NLP side — ideal if the team is model-heavy and needs ops muscle.",
+    recommendation: "Recommended",
+    uploadedAt: "2026-07-02T09:00:00Z",
+    status: "pending",
+    interviewQuestions: [
+      "Walk me through your drift detection setup — what metrics did you monitor?",
+      "How did you handle blue-green deployments for ML models?",
+      "What's your approach to model reproducibility in multi-team environments?",
+    ],
+    salaryEstimate: "₹20–26 LPA",
+    softSkills: ["Systems Thinking", "Reliability", "Documentation"],
+  },
+];
+
+const SKILL_DISTRIBUTION = [
+  { skill: "Python", count: 6, fill: "#7C3AED" },
+  { skill: "Docker", count: 4, fill: "#06B6D4" },
+  { skill: "AWS", count: 5, fill: "#10B981" },
+  { skill: "PyTorch", count: 4, fill: "#F59E0B" },
+  { skill: "TensorFlow", count: 4, fill: "#EF4444" },
+  { skill: "FastAPI", count: 3, fill: "#8B5CF6" },
+  { skill: "Kubernetes", count: 3, fill: "#14B8A6" },
+  { skill: "NLP", count: 3, fill: "#F97316" },
+];
+
+const SCORE_TREND = [
+  { date: "Jun 28", avg: 67 },
+  { date: "Jun 29", avg: 71 },
+  { date: "Jun 30", avg: 74 },
+  { date: "Jul 1", avg: 78 },
+  { date: "Jul 2", avg: 76 },
+  { date: "Jul 3", avg: 82 },
+];
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+
+function cn(...classes: (string | boolean | undefined)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function getScoreColor(score: number) {
+  if (score >= 80) return "#10B981";
+  if (score >= 65) return "#F59E0B";
+  return "#EF4444";
+}
+
+function getScoreBg(score: number) {
+  if (score >= 80) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  if (score >= 65) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+  return "bg-red-500/10 text-red-400 border-red-500/20";
+}
+
+function getRecommendationConfig(rec: string) {
+  if (rec === "Highly Recommended") return { icon: Star, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-400" };
+  if (rec === "Recommended") return { icon: CheckCircle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", dot: "bg-amber-400" };
+  return { icon: XCircle, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20", dot: "bg-red-400" };
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function ScoreRing({ score, size = 80, strokeWidth = 8 }: { score: number; size?: number; strokeWidth?: number }) {
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (score / 100) * circ;
+  const color = getScoreColor(score);
+
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke={color} strokeWidth={strokeWidth}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 1s ease", filter: `drop-shadow(0 0 6px ${color}80)` }}
+      />
+    </svg>
+  );
+}
+
+function GlassCard({ children, className = "", hover = true }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+  return (
+    <div className={cn(
+      "relative rounded-xl border border-white/5 bg-[#080E1C]/80 backdrop-blur-xl",
+      hover && "transition-all duration-300 hover:border-purple-500/25 hover:bg-[#0D1526]/80",
+      className,
+    )}>
+      {children}
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, sub, color, trend }: {
+  icon: React.ElementType; label: string; value: string; sub?: string; color: string; trend?: string;
+}) {
+  return (
+    <GlassCard className="p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div className={cn("p-2.5 rounded-lg", color)}>
+          <Icon size={18} />
+        </div>
+        {trend && (
+          <span className="flex items-center gap-1 text-xs text-emerald-400 font-medium">
+            <TrendingUp size={12} /> {trend}
+          </span>
+        )}
+      </div>
+      <div className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "'Rajdhani', sans-serif" }}>{value}</div>
+      <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">{label}</div>
+      {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
+    </GlassCard>
+  );
+}
+
+function SkillBadge({ name, matched, size = "sm" }: { name: string; matched: boolean; size?: "xs" | "sm" }) {
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 rounded-md border font-medium",
+      size === "xs" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs",
+      matched
+        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+        : "bg-red-500/10 text-red-400 border-red-500/20",
+    )}>
+      {matched ? <CheckCircle size={10} /> : <XCircle size={10} />}
+      {name}
+    </span>
+  );
+}
+
+function ProgressBar({ value, color = "#7C3AED", label }: { value: number; color?: string; label?: string }) {
+  return (
+    <div>
+      {label && (
+        <div className="flex justify-between text-xs mb-1.5">
+          <span className="text-slate-400">{label}</span>
+          <span className="text-white font-medium">{value}%</span>
+        </div>
+      )}
+      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <motion.div
+          className="h-full rounded-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          style={{ background: color, boxShadow: `0 0 8px ${color}60` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { id: "upload", icon: Upload, label: "Upload Resumes" },
+  { id: "candidates", icon: Users, label: "Candidates" },
+  { id: "analysis", icon: BarChart2, label: "Analysis" },
+  { id: "settings", icon: Settings, label: "Settings" },
+] as const;
+
+function Sidebar({ page, setPage, collapsed, setCollapsed }: {
+  page: Page; setPage: (p: Page) => void; collapsed: boolean; setCollapsed: (v: boolean) => void;
+}) {
+  return (
+    <aside className={cn(
+      "fixed left-0 top-0 h-screen bg-[#060B18] border-r border-purple-500/10 flex flex-col z-40",
+      "transition-all duration-300",
+      collapsed ? "w-16" : "w-60",
+    )}>
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-purple-500/10">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-violet-700 flex items-center justify-center shrink-0 shadow-lg shadow-purple-900/40">
+          <Brain size={16} className="text-white" />
+        </div>
+        {!collapsed && (
+          <div className="overflow-hidden">
+            <div className="text-sm font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif", letterSpacing: "0.05em" }}>AI SCREEN</div>
+            <div className="text-[10px] text-purple-400 uppercase tracking-widest">Resume Intelligence</div>
+          </div>
+        )}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="ml-auto text-slate-500 hover:text-white transition-colors"
+        >
+          {collapsed ? <ChevronRight size={14} /> : <X size={14} />}
+        </button>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-3 space-y-1">
+        {NAV_ITEMS.map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            onClick={() => setPage(id as Page)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+              page === id
+                ? "bg-purple-600/20 text-purple-300 border border-purple-500/25"
+                : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
+            )}
+          >
+            <Icon size={16} className="shrink-0" />
+            {!collapsed && <span>{label}</span>}
+            {!collapsed && page === id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-purple-400" />}
+          </button>
+        ))}
+      </nav>
+
+      {/* Bottom */}
+      <div className="p-3 border-t border-purple-500/10">
+        <div className={cn("flex items-center gap-3 px-2 py-2", collapsed && "justify-center")}>
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shrink-0">
+            <span className="text-[10px] font-bold text-white">HR</span>
+          </div>
+          {!collapsed && (
+            <div>
+              <div className="text-xs font-medium text-white">Priya Nair</div>
+              <div className="text-[10px] text-slate-500">HR Manager</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ─── Dashboard Page ───────────────────────────────────────────────────────────
+
+function Dashboard({ candidates, setPage, setSelectedCandidate }: {
+  candidates: Candidate[]; setPage: (p: Page) => void; setSelectedCandidate: (c: Candidate) => void;
+}) {
+  const shortlisted = candidates.filter(c => c.status === "shortlisted").length;
+  const avgScore = Math.round(candidates.reduce((s, c) => s + c.matchScore, 0) / candidates.length);
+  const top = candidates.reduce((a, b) => a.matchScore > b.matchScore ? a : b);
+
+  const scoreData = candidates.map(c => ({
+    name: c.name.split(" ")[0],
+    score: c.matchScore,
+    ats: c.atsScore,
+  }));
+
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; dataKey: string }>; label?: string }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-[#0D1526] border border-purple-500/20 rounded-lg p-3 text-xs shadow-xl">
+        <div className="text-slate-300 font-medium mb-2">{label}</div>
+        {payload.map((p) => (
+          <div key={p.dataKey} className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full" style={{ background: p.dataKey === "score" ? "#7C3AED" : "#06B6D4" }} />
+            <span className="text-slate-400 capitalize">{p.dataKey}:</span>
+            <span className="text-white font-bold">{p.value}%</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const PieTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number }> }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-[#0D1526] border border-purple-500/20 rounded-lg p-3 text-xs">
+        <span className="text-white font-bold">{payload[0].name}: {payload[0].value}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>Dashboard Overview</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Senior ML Engineer · Batch uploaded July 1–2, 2026</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-400 bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+          <RefreshCw size={12} />
+          <span>Updated just now</span>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={FileText} label="Total Resumes" value={String(candidates.length)} sub="6 processed" color="bg-purple-500/10 text-purple-400" trend="+6 today" />
+        <StatCard icon={Target} label="Avg Match Score" value={`${avgScore}%`} sub="vs JD requirements" color="bg-cyan-500/10 text-cyan-400" trend="+4% vs last week" />
+        <StatCard icon={Award} label="Top Candidate" value={top.name.split(" ")[0]} sub={`${top.matchScore}% match`} color="bg-emerald-500/10 text-emerald-400" />
+        <StatCard icon={Users} label="Shortlisted" value={String(shortlisted)} sub={`${Math.round(shortlisted / candidates.length * 100)}% shortlist rate`} color="bg-amber-500/10 text-amber-400" />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Match Scores Bar */}
+        <GlassCard className="lg:col-span-2 p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Match Score Comparison</h3>
+              <p className="text-xs text-slate-500">Match vs ATS scores per candidate</p>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> Match</span>
+              <span className="flex items-center gap-1.5 text-slate-400"><span className="w-2 h-2 rounded-full bg-cyan-500 inline-block" /> ATS</span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={scoreData} barGap={4}>
+              <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(124,58,237,0.05)" }} />
+              <Bar dataKey="score" fill="#7C3AED" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="ats" fill="#06B6D4" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GlassCard>
+
+        {/* Status Distribution */}
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">Candidate Status</h3>
+          <p className="text-xs text-slate-500 mb-4">Screening outcome distribution</p>
+          <div className="flex justify-center">
+            <ResponsiveContainer width={160} height={160}>
+              <PieChart>
+                <Pie data={[
+                  { name: "Shortlisted", value: 3, fill: "#10B981" },
+                  { name: "Pending", value: 2, fill: "#F59E0B" },
+                  { name: "Rejected", value: 1, fill: "#EF4444" },
+                ]} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value">
+                  {[{ name: "Shortlisted", fill: "#10B981" }, { name: "Pending", fill: "#F59E0B" }, { name: "Rejected", fill: "#EF4444" }].map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip content={<PieTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2 mt-2">
+            {[{ label: "Shortlisted", count: 3, color: "bg-emerald-400" }, { label: "Pending", count: 2, color: "bg-amber-400" }, { label: "Rejected", count: 1, color: "bg-red-400" }].map(item => (
+              <div key={item.label} className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-2 text-slate-400"><span className={cn("w-1.5 h-1.5 rounded-full", item.color)} />{item.label}</span>
+                <span className="text-white font-medium">{item.count}</span>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Score Trend + Skill Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">Score Trend</h3>
+          <p className="text-xs text-slate-500 mb-4">Average match score over screening days</p>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={SCORE_TREND}>
+              <CartesianGrid stroke="rgba(255,255,255,0.04)" />
+              <XAxis dataKey="date" tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[60, 90]} tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ background: "#0D1526", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+              <Line type="monotone" dataKey="avg" stroke="#7C3AED" strokeWidth={2} dot={{ fill: "#7C3AED", r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </GlassCard>
+
+        <GlassCard className="p-5">
+          <h3 className="text-sm font-semibold text-white mb-1">Top Skills in Pool</h3>
+          <p className="text-xs text-slate-500 mb-4">Skills frequency across all resumes</p>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={SKILL_DISTRIBUTION} layout="vertical">
+              <XAxis type="number" tick={{ fill: "#64748B", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 7]} />
+              <YAxis type="category" dataKey="skill" tick={{ fill: "#94A3B8", fontSize: 10 }} axisLine={false} tickLine={false} width={90} />
+              <Tooltip contentStyle={{ background: "#0D1526", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                {SKILL_DISTRIBUTION.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </GlassCard>
+      </div>
+
+      {/* Top Candidates */}
+      <GlassCard className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white">Top Candidates</h3>
+          <button onClick={() => setPage("candidates")} className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1">
+            View all <ChevronRight size={12} />
+          </button>
+        </div>
+        <div className="space-y-3">
+          {candidates.sort((a, b) => b.matchScore - a.matchScore).slice(0, 4).map((c, i) => {
+            const rec = getRecommendationConfig(c.recommendation);
+            return (
+              <div
+                key={c.id}
+                onClick={() => { setSelectedCandidate(c); setPage("candidates"); }}
+                className="flex items-center gap-4 p-3 rounded-lg bg-white/2 hover:bg-purple-500/5 border border-transparent hover:border-purple-500/15 cursor-pointer transition-all"
+              >
+                <span className="text-slate-600 text-xs font-mono w-5 text-center">{i + 1}</span>
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-600/40 to-cyan-600/20 flex items-center justify-center shrink-0">
+                  <span className="text-xs font-bold text-purple-300">{c.name.split(" ").map(n => n[0]).join("")}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white">{c.name}</div>
+                  <div className="text-xs text-slate-500 truncate">{c.title} · {c.experience}y exp</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={cn("text-xs px-2 py-0.5 rounded-md border", getScoreBg(c.matchScore))}>
+                    {c.matchScore}%
+                  </span>
+                  <span className={cn("hidden sm:inline-flex text-xs px-2 py-0.5 rounded-md border", rec.bg, rec.color)}>
+                    {c.recommendation === "Highly Recommended" ? "★ Top Pick" : c.recommendation}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </GlassCard>
+    </div>
+  );
+}
+
+// ─── Upload Page ──────────────────────────────────────────────────────────────
+
+function UploadPage({ onAnalyze }: { onAnalyze: () => void }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [files, setFiles] = useState<{ name: string; size: number }[]>([]);
+  const [jd, setJd] = useState(JOB_DESCRIPTION);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [step, setStep] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = Array.from(e.dataTransfer.files).filter(f =>
+      f.name.endsWith(".pdf") || f.name.endsWith(".docx"),
+    );
+    setFiles(prev => [...prev, ...dropped.map(f => ({ name: f.name, size: f.size }))]);
+  }, []);
+
+  const addMockFiles = () => {
+    setFiles([
+      { name: "aryan_mehta_resume.pdf", size: 245600 },
+      { name: "priya_sharma_cv.pdf", size: 198400 },
+      { name: "rohan_verma_resume.docx", size: 156800 },
+      { name: "sneha_kapoor_cv.pdf", size: 221300 },
+      { name: "kiran_reddy_resume.pdf", size: 134900 },
+      { name: "dev_patel_mlops.pdf", size: 267100 },
+    ]);
+  };
+
+  const runAnalysis = async () => {
+    setAnalyzing(true);
+    const steps = [
+      [10, "Parsing PDF/DOCX files..."],
+      [25, "Extracting entities (NER)..."],
+      [40, "Generating Sentence-BERT embeddings..."],
+      [55, "Computing cosine similarity..."],
+      [70, "Running skill gap analysis..."],
+      [82, "Scoring & ranking candidates..."],
+      [92, "Generating AI summaries..."],
+      [100, "Complete!"],
+    ];
+    for (const [p, s] of steps as [number, string][]) {
+      setProgress(p);
+      setStep(s);
+      await new Promise(r => setTimeout(r, 600));
+    }
+    await new Promise(r => setTimeout(r, 400));
+    onAnalyze();
+  };
+
+  if (analyzing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-8">
+        <div className="relative">
+          <div className="w-28 h-28">
+            <ScoreRing score={progress} size={112} strokeWidth={6} />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-2xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>{progress}%</span>
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+          <div className="text-lg font-semibold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>AI Analysis Running</div>
+          <div className="text-sm text-purple-400 font-mono">{step}</div>
+        </div>
+        <div className="w-80 space-y-3">
+          {[
+            "PDF/DOCX parsing", "NLP entity extraction", "Sentence-BERT embeddings",
+            "Cosine similarity scoring", "Skill gap analysis", "Candidate ranking",
+          ].map((label, i) => (
+            <div key={label} className="flex items-center gap-3">
+              <div className={cn("w-4 h-4 rounded-full border flex items-center justify-center shrink-0",
+                progress > (i + 1) * 15 ? "bg-purple-500 border-purple-500" : "border-slate-600")}>
+                {progress > (i + 1) * 15 && <CheckCircle size={10} className="text-white" />}
+              </div>
+              <span className={cn("text-xs", progress > (i + 1) * 15 ? "text-slate-300" : "text-slate-600")}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>Upload & Analyze</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Upload resumes (PDF/DOCX) and paste the Job Description to begin AI screening</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Drop Zone */}
+        <div>
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Resumes</label>
+          <div
+            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+            className={cn(
+              "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 min-h-[200px] flex flex-col items-center justify-center",
+              isDragging ? "border-purple-500 bg-purple-500/5" : "border-slate-700 hover:border-purple-500/50 hover:bg-purple-500/2",
+            )}
+          >
+            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-3">
+              <Upload size={22} className="text-purple-400" />
+            </div>
+            <div className="text-sm font-medium text-slate-300 mb-1">Drop resumes here or click to browse</div>
+            <div className="text-xs text-slate-600">Supports PDF and DOCX · Max 10MB each</div>
+            <input ref={fileRef} type="file" multiple accept=".pdf,.docx" className="hidden" />
+          </div>
+
+          {files.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/3 border border-white/5">
+                  <FileText size={14} className="text-purple-400 shrink-0" />
+                  <span className="text-xs text-slate-300 flex-1 truncate">{f.name}</span>
+                  <span className="text-[10px] text-slate-600">{(f.size / 1024).toFixed(0)} KB</span>
+                  <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-600 hover:text-red-400 transition-colors">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <button onClick={addMockFiles} className="w-full mt-3 py-2 text-xs text-purple-400 hover:text-purple-300 border border-purple-500/20 rounded-lg hover:bg-purple-500/5 transition-all">
+              + Load sample resumes (demo)
+            </button>
+          )}
+        </div>
+
+        {/* JD Input */}
+        <div>
+          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 block">Job Description</label>
+          <textarea
+            value={jd}
+            onChange={e => setJd(e.target.value)}
+            className="w-full h-[calc(100%-2rem)] min-h-[240px] bg-[#080E1C] border border-white/5 rounded-xl p-4 text-xs text-slate-300 placeholder-slate-600 resize-none focus:outline-none focus:border-purple-500/40 font-mono leading-relaxed"
+            placeholder="Paste your job description here..."
+          />
+        </div>
+      </div>
+
+      {/* AI Options */}
+      <GlassCard className="p-4">
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">AI Pipeline Options</div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            { label: "Sentence-BERT Embeddings", sub: "all-MiniLM-L6-v2", checked: true },
+            { label: "NER Extraction (spaCy)", sub: "en_core_web_trf", checked: true },
+            { label: "Skill Gap Analysis", sub: "JD-vs-Resume diff", checked: true },
+            { label: "ATS Score", sub: "Keyword density check", checked: true },
+            { label: "Grammar Check", sub: "LanguageTool API", checked: false },
+            { label: "Duplicate Detection", sub: "Cosine threshold 0.95", checked: true },
+          ].map(opt => (
+            <label key={opt.label} className="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-white/3 cursor-pointer">
+              <div className={cn("w-4 h-4 rounded border mt-0.5 flex items-center justify-center shrink-0",
+                opt.checked ? "bg-purple-600 border-purple-600" : "border-slate-600")}>
+                {opt.checked && <CheckCircle size={10} className="text-white" />}
+              </div>
+              <div>
+                <div className="text-xs font-medium text-slate-300">{opt.label}</div>
+                <div className="text-[10px] text-slate-600 font-mono">{opt.sub}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </GlassCard>
+
+      <button
+        onClick={runAnalysis}
+        disabled={files.length === 0}
+        className={cn(
+          "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200",
+          files.length > 0
+            ? "bg-gradient-to-r from-purple-600 to-violet-700 text-white hover:from-purple-500 hover:to-violet-600 shadow-lg shadow-purple-900/40"
+            : "bg-slate-800 text-slate-600 cursor-not-allowed",
+        )}
+      >
+        <Zap size={16} /> Run AI Screening ({files.length} resumes)
+      </button>
+    </div>
+  );
+}
+
+// ─── Candidate Card ───────────────────────────────────────────────────────────
+
+function CandidateCard({ candidate, rank, onClick }: { candidate: Candidate; rank: number; onClick: () => void }) {
+  const rec = getRecommendationConfig(candidate.recommendation);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+    >
+      <GlassCard className="p-5 cursor-pointer" hover>
+        <div className="flex items-start gap-4" onClick={onClick}>
+          {/* Rank + Avatar */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="text-[10px] font-mono text-slate-600">#{rank}</div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600/30 to-cyan-500/20 flex items-center justify-center border border-white/5">
+              <span className="text-sm font-bold text-purple-300">{candidate.name.split(" ").map(n => n[0]).join("")}</span>
+            </div>
+          </div>
+
+          {/* Main Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div>
+                <div className="font-semibold text-white text-sm" style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: "1rem" }}>{candidate.name}</div>
+                <div className="text-xs text-slate-400">{candidate.title} · {candidate.university}</div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={cn("text-xs px-2 py-0.5 rounded-md border font-medium", rec.bg, rec.color)}>
+                  {candidate.recommendation === "Highly Recommended" ? "★ Top Pick" : candidate.recommendation}
+                </span>
+                <span className={cn("hidden sm:inline text-xs px-2 py-0.5 rounded-md border font-medium",
+                  candidate.status === "shortlisted" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" :
+                  candidate.status === "rejected" ? "bg-red-500/10 text-red-400 border-red-500/20" :
+                  "bg-amber-500/10 text-amber-400 border-amber-500/25")}>
+                  {candidate.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Scores */}
+            <div className="flex items-center gap-4 mt-3 mb-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="relative w-10 h-10">
+                  <ScoreRing score={candidate.matchScore} size={40} strokeWidth={4} />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-white">{candidate.matchScore}%</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500">Match</div>
+                  <div className="text-xs font-semibold" style={{ color: getScoreColor(candidate.matchScore) }}>{candidate.matchScore}%</div>
+                </div>
+              </div>
+              <div className="h-6 w-px bg-white/5" />
+              <div className="text-xs text-slate-400">ATS: <span className="text-slate-200 font-medium">{candidate.atsScore}%</span></div>
+              <div className="text-xs text-slate-400">Quality: <span className="text-slate-200 font-medium">{candidate.qualityScore}%</span></div>
+              <div className="text-xs text-slate-400 flex items-center gap-1"><Briefcase size={10} /> <span className="text-slate-200 font-medium">{candidate.experience}y</span></div>
+              <div className="text-xs text-slate-400 flex items-center gap-1"><GraduationCap size={10} /> <span className="text-slate-200 font-medium truncate max-w-[120px]">{candidate.education}</span></div>
+            </div>
+
+            {/* Skills */}
+            <div className="flex flex-wrap gap-1.5">
+              {candidate.matchingSkills.slice(0, 5).map(s => <SkillBadge key={s} name={s} matched size="xs" />)}
+              {candidate.missingSkills.slice(0, 2).map(s => <SkillBadge key={s} name={s} matched={false} size="xs" />)}
+              {(candidate.matchingSkills.length + candidate.missingSkills.length) > 7 && (
+                <span className="text-[10px] text-slate-600 px-1.5 py-0.5">+{candidate.matchingSkills.length + candidate.missingSkills.length - 7} more</span>
+              )}
+            </div>
+          </div>
+
+          <ChevronRight size={14} className="text-slate-600 shrink-0 mt-1" />
+        </div>
+      </GlassCard>
+    </motion.div>
+  );
+}
+
+// ─── Candidate Detail ─────────────────────────────────────────────────────────
+
+function CandidateDetail({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
+  const [tab, setTab] = useState<"overview" | "skills" | "ai" | "interview">("overview");
+  const rec = getRecommendationConfig(candidate.recommendation);
+
+  const radarData = [
+    { subject: "Python", value: candidate.matchingSkills.includes("Python") ? 90 : 30 },
+    { subject: "ML Depth", value: Math.round(candidate.matchScore * 0.9) },
+    { subject: "MLOps", value: candidate.matchingSkills.includes("Docker") ? 70 : 40 },
+    { subject: "Cloud", value: candidate.matchingSkills.includes("AWS") || candidate.matchingSkills.includes("GCP") ? 75 : 30 },
+    { subject: "API Dev", value: candidate.matchingSkills.includes("FastAPI") ? 85 : 45 },
+    { subject: "Experience", value: Math.min(100, candidate.experience * 14) },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-end p-4 overflow-y-auto"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 300 }}
+        className="w-full max-w-2xl bg-[#080E1C] border border-purple-500/15 rounded-2xl shadow-2xl shadow-purple-900/20 overflow-hidden"
+      >
+        {/* Header */}
+        <div className="relative p-6 border-b border-white/5 bg-gradient-to-r from-purple-600/10 to-cyan-600/5">
+          <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-600/50 to-cyan-500/30 flex items-center justify-center border border-purple-500/25 shadow-lg shadow-purple-900/40">
+              <span className="text-xl font-bold text-white">{candidate.name.split(" ").map(n => n[0]).join("")}</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>{candidate.name}</h2>
+              <div className="text-sm text-slate-400">{candidate.title} · {candidate.university}</div>
+              <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 flex-wrap">
+                <span className="flex items-center gap-1"><Mail size={11} /> {candidate.email}</span>
+                <span className="flex items-center gap-1"><Phone size={11} /> {candidate.phone}</span>
+                <span className="flex items-center gap-1"><Globe size={11} /> {candidate.location}</span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <div className="relative w-16 h-16 mx-auto">
+                <ScoreRing score={candidate.matchScore} size={64} strokeWidth={5} />
+                <div className="absolute inset-0 flex items-center justify-center flex-col">
+                  <span className="text-xs font-bold text-white leading-none">{candidate.matchScore}%</span>
+                  <span className="text-[8px] text-slate-500">match</span>
+                </div>
+              </div>
+              <span className={cn("mt-1 inline-flex text-xs px-2 py-0.5 rounded-md border", rec.bg, rec.color)}>
+                {candidate.recommendation === "Highly Recommended" ? "★ Top Pick" : candidate.recommendation}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-white/5">
+          {(["overview", "skills", "ai", "interview"] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "flex-1 py-3 text-xs font-medium capitalize transition-colors",
+                tab === t ? "text-purple-400 border-b-2 border-purple-500" : "text-slate-500 hover:text-slate-300",
+              )}
+            >
+              {t === "ai" ? "AI Insights" : t === "interview" ? "Interview Qs" : t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(100vh-260px)]">
+          {tab === "overview" && (
+            <div className="space-y-5">
+              {/* Score breakdown */}
+              <div className="grid grid-cols-3 gap-3">
+                {[{ label: "Match Score", value: candidate.matchScore, color: getScoreColor(candidate.matchScore) },
+                  { label: "ATS Score", value: candidate.atsScore, color: "#06B6D4" },
+                  { label: "Quality Score", value: candidate.qualityScore, color: "#F59E0B" }].map(s => (
+                  <div key={s.label} className="bg-white/3 rounded-xl p-3 text-center border border-white/5">
+                    <div className="text-xl font-bold" style={{ color: s.color, fontFamily: "'Rajdhani', sans-serif" }}>{s.value}%</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">{s.label}</div>
+                    <div className="mt-2">
+                      <ProgressBar value={s.value} color={s.color} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick facts */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { icon: Briefcase, label: "Experience", value: `${candidate.experience} years` },
+                  { icon: GraduationCap, label: "Education", value: candidate.education },
+                  { icon: Award, label: "Salary Est.", value: candidate.salaryEstimate },
+                  { icon: Globe, label: "Languages", value: candidate.languages.join(", ") },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center gap-3 p-3 bg-white/2 rounded-lg border border-white/5">
+                    <item.icon size={14} className="text-purple-400 shrink-0" />
+                    <div>
+                      <div className="text-[10px] text-slate-500">{item.label}</div>
+                      <div className="text-xs text-white font-medium">{item.value}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Radar Chart */}
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Competency Radar</div>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width={280} height={200}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="rgba(255,255,255,0.06)" />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: "#64748B", fontSize: 10 }} />
+                      <Radar dataKey="value" stroke="#7C3AED" fill="#7C3AED" fillOpacity={0.2} strokeWidth={2} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Projects */}
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Key Projects</div>
+                <div className="space-y-2">
+                  {candidate.projects.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                      <div className="w-1 h-1 rounded-full bg-purple-400 mt-1.5 shrink-0" />
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Certifications */}
+              {candidate.certifications.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Certifications</div>
+                  <div className="flex flex-wrap gap-2">
+                    {candidate.certifications.map(c => (
+                      <span key={c} className="text-xs px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">{c}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "skills" && (
+            <div className="space-y-5">
+              <div>
+                <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <CheckCircle size={12} /> Matching Skills ({candidate.matchingSkills.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {candidate.matchingSkills.map(s => <SkillBadge key={s} name={s} matched />)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <XCircle size={12} /> Missing Skills ({candidate.missingSkills.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {candidate.missingSkills.map(s => <SkillBadge key={s} name={s} matched={false} />)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">All Skills & Levels</div>
+                <div className="space-y-3">
+                  {candidate.skills.map(skill => (
+                    <div key={skill.name}>
+                      <div className="flex justify-between text-xs mb-1.5">
+                        <span className="text-slate-300">{skill.name}</span>
+                        <span className={cn("capitalize font-mono",
+                          skill.level === "expert" ? "text-purple-400" :
+                          skill.level === "proficient" ? "text-cyan-400" : "text-slate-500")}>
+                          {skill.level}
+                        </span>
+                      </div>
+                      <ProgressBar
+                        value={skill.level === "expert" ? 90 : skill.level === "proficient" ? 65 : 35}
+                        color={skill.level === "expert" ? "#7C3AED" : skill.level === "proficient" ? "#06B6D4" : "#475569"}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Soft Skills</div>
+                <div className="flex flex-wrap gap-2">
+                  {candidate.softSkills.map(s => (
+                    <span key={s} className="text-xs px-2 py-0.5 rounded-md bg-slate-700/50 text-slate-300 border border-white/5">{s}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "ai" && (
+            <div className="space-y-5">
+              <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Brain size={14} className="text-purple-400" />
+                  <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">AI Summary</span>
+                </div>
+                <p className="text-sm text-slate-300 leading-relaxed">{candidate.summary}</p>
+              </div>
+
+              <div className={cn("p-4 rounded-xl border", rec.bg)}>
+                <div className="flex items-center gap-2 mb-1">
+                  <rec.icon size={14} className={rec.color} />
+                  <span className={cn("text-xs font-semibold uppercase tracking-wider", rec.color)}>Recommendation</span>
+                </div>
+                <div className={cn("text-sm font-bold", rec.color)}>{candidate.recommendation}</div>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Match Breakdown</div>
+                <div className="space-y-3">
+                  <ProgressBar value={candidate.matchScore} color="#7C3AED" label="JD Match Score" />
+                  <ProgressBar value={candidate.atsScore} color="#06B6D4" label="ATS Compatibility" />
+                  <ProgressBar value={candidate.qualityScore} color="#F59E0B" label="Resume Quality" />
+                  <ProgressBar value={Math.round(candidate.matchingSkills.length / (candidate.matchingSkills.length + candidate.missingSkills.length) * 100)} color="#10B981" label="Skill Coverage" />
+                  <ProgressBar value={Math.min(100, candidate.experience * 13)} color="#8B5CF6" label="Experience Score" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Cpu size={14} className="text-cyan-400" />
+                  <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">Salary Estimate</span>
+                </div>
+                <div className="text-lg font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>{candidate.salaryEstimate}</div>
+                <div className="text-xs text-slate-500 mt-0.5">Based on skills, experience & market data</div>
+              </div>
+            </div>
+          )}
+
+          {tab === "interview" && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <MessageSquare size={12} />
+                AI-generated interview questions tailored to this candidate&apos;s profile
+              </div>
+              {candidate.interviewQuestions.map((q, i) => (
+                <div key={i} className="p-4 rounded-xl bg-white/2 border border-white/5 hover:border-purple-500/15 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xs font-mono text-purple-400 shrink-0 mt-0.5">Q{i + 1}</span>
+                    <p className="text-sm text-slate-300 leading-relaxed">{q}</p>
+                  </div>
+                </div>
+              ))}
+              <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-amber-400 flex items-center gap-2">
+                <AlertCircle size={12} />
+                Questions are AI-generated based on resume content and JD requirements
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-white/5 bg-black/20">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 text-purple-300 text-xs font-medium hover:bg-purple-600/30 border border-purple-500/25 transition-all">
+            <Mail size={13} /> Send Invite
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-medium hover:bg-emerald-600/30 border border-emerald-500/25 transition-all">
+            <CheckCircle size={13} /> Shortlist
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 text-slate-400 text-xs font-medium hover:bg-white/8 border border-white/5 transition-all ml-auto">
+            <Download size={13} /> Export PDF
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Candidates Page ──────────────────────────────────────────────────────────
+
+function CandidatesPage({ candidates, selected, setSelected }: {
+  candidates: Candidate[]; selected: Candidate | null; setSelected: (c: Candidate | null) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterExp, setFilterExp] = useState("all");
+  const [sortBy, setSortBy] = useState("matchScore");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const filtered = candidates
+    .filter(c => {
+      const q = search.toLowerCase();
+      const matchesSearch = !q || c.name.toLowerCase().includes(q) || c.skills.some(s => s.name.toLowerCase().includes(q)) || String(c.matchScore).includes(q);
+      const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+      const matchesExp = filterExp === "all" || (filterExp === "0-2" && c.experience <= 2) || (filterExp === "3-5" && c.experience >= 3 && c.experience <= 5) || (filterExp === "5+" && c.experience > 5);
+      return matchesSearch && matchesStatus && matchesExp;
+    })
+    .sort((a, b) => {
+      if (sortBy === "matchScore") return b.matchScore - a.matchScore;
+      if (sortBy === "atsScore") return b.atsScore - a.atsScore;
+      if (sortBy === "experience") return b.experience - a.experience;
+      return 0;
+    });
+
+  return (
+    <div className="space-y-5">
+      {selected && (
+        <CandidateDetail candidate={selected} onClose={() => setSelected(null)} />
+      )}
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>Candidates</h1>
+          <p className="text-sm text-slate-400">{filtered.length} of {candidates.length} candidates</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 text-slate-400 text-xs hover:bg-white/8 border border-white/5 transition-all">
+            <Download size={13} /> Export CSV
+          </button>
+          <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600/20 text-purple-300 text-xs border border-purple-500/25 hover:bg-purple-600/30 transition-all">
+            <Download size={13} /> Export PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Search + Filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by name, skill, or score..."
+            className="w-full pl-9 pr-4 py-2 bg-[#0D1526] border border-white/5 rounded-lg text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-purple-500/40"
+          />
+        </div>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={cn("flex items-center gap-2 px-3 py-2 rounded-lg text-xs border transition-all",
+            showFilters ? "bg-purple-600/20 text-purple-300 border-purple-500/25" : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/8")}
+        >
+          <Filter size={13} /> Filters
+          <ChevronDown size={12} className={cn("transition-transform", showFilters && "rotate-180")} />
+        </button>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value)}
+          className="px-3 py-2 bg-[#0D1526] border border-white/5 rounded-lg text-xs text-slate-400 focus:outline-none focus:border-purple-500/40"
+        >
+          <option value="matchScore">Sort: Match Score</option>
+          <option value="atsScore">Sort: ATS Score</option>
+          <option value="experience">Sort: Experience</option>
+        </select>
+      </div>
+
+      {/* Filter Panel */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <GlassCard className="p-4">
+              <div className="flex items-center gap-6 flex-wrap">
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Status</div>
+                  <div className="flex items-center gap-2">
+                    {["all", "shortlisted", "pending", "rejected"].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setFilterStatus(s)}
+                        className={cn("px-2.5 py-1 rounded-md text-xs capitalize border transition-all",
+                          filterStatus === s ? "bg-purple-600/20 text-purple-300 border-purple-500/25" : "bg-white/5 text-slate-500 border-white/5 hover:text-slate-300")}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Experience</div>
+                  <div className="flex items-center gap-2">
+                    {[["all", "Any"], ["0-2", "0–2y"], ["3-5", "3–5y"], ["5+", "5+ y"]].map(([v, l]) => (
+                      <button
+                        key={v}
+                        onClick={() => setFilterExp(v)}
+                        className={cn("px-2.5 py-1 rounded-md text-xs border transition-all",
+                          filterExp === v ? "bg-purple-600/20 text-purple-300 border-purple-500/25" : "bg-white/5 text-slate-500 border-white/5 hover:text-slate-300")}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Candidate List */}
+      <div className="space-y-3">
+        <AnimatePresence>
+          {filtered.map((c, i) => (
+            <CandidateCard key={c.id} candidate={c} rank={i + 1} onClick={() => setSelected(c)} />
+          ))}
+        </AnimatePresence>
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-slate-600">
+            <Search size={32} className="mx-auto mb-3 opacity-30" />
+            <div className="text-sm">No candidates match your search</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Analysis Page ────────────────────────────────────────────────────────────
+
+function AnalysisPage({ candidates }: { candidates: Candidate[] }) {
+  const allSkills = [...new Set(candidates.flatMap(c => [...c.matchingSkills, ...c.missingSkills]))];
+  const skillCoverage = allSkills.slice(0, 10).map(skill => ({
+    skill: skill.length > 12 ? skill.slice(0, 12) + "…" : skill,
+    have: candidates.filter(c => c.matchingSkills.includes(skill)).length,
+    missing: candidates.filter(c => c.missingSkills.includes(skill)).length,
+  }));
+
+  const expData = candidates.map(c => ({ name: c.name.split(" ")[0], years: c.experience, score: c.matchScore }));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>Deep Analysis</h1>
+        <p className="text-sm text-slate-400">AI-powered insights across the candidate pool</p>
+      </div>
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Pool Skill Coverage", value: "78%", sub: "vs JD requirements", color: "text-purple-400" },
+          { label: "Avg ATS Score", value: `${Math.round(candidates.reduce((s, c) => s + c.atsScore, 0) / candidates.length)}%`, sub: "Keyword density", color: "text-cyan-400" },
+          { label: "Avg Experience", value: `${(candidates.reduce((s, c) => s + c.experience, 0) / candidates.length).toFixed(1)}y`, sub: "Required: 4+", color: "text-amber-400" },
+          { label: "Top Scorer", value: `${Math.max(...candidates.map(c => c.matchScore))}%`, sub: candidates.find(c => c.matchScore === Math.max(...candidates.map(c => c.matchScore)))?.name.split(" ")[0], color: "text-emerald-400" },
+        ].map(s => (
+          <GlassCard key={s.label} className="p-4 text-center">
+            <div className={cn("text-2xl font-bold mb-1", s.color)} style={{ fontFamily: "'Rajdhani', sans-serif" }}>{s.value}</div>
+            <div className="text-xs text-slate-400 font-medium">{s.label}</div>
+            <div className="text-[10px] text-slate-600 mt-0.5">{s.sub}</div>
+          </GlassCard>
+        ))}
+      </div>
+
+      {/* Skill Coverage */}
+      <GlassCard className="p-5">
+        <h3 className="text-sm font-semibold text-white mb-1">Skill Coverage Across Pool</h3>
+        <p className="text-xs text-slate-500 mb-4">How many candidates have vs. are missing each required skill</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={skillCoverage} barGap={4}>
+            <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="skill" tick={{ fill: "#64748B", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "#64748B", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, candidates.length]} />
+            <Tooltip contentStyle={{ background: "#0D1526", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+            <Bar dataKey="have" name="Candidates with skill" fill="#10B981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="missing" name="Missing skill" fill="#EF4444" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        <div className="flex justify-center gap-6 mt-2 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" />Has skill</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />Missing skill</span>
+        </div>
+      </GlassCard>
+
+      {/* Experience vs Score */}
+      <GlassCard className="p-5">
+        <h3 className="text-sm font-semibold text-white mb-1">Experience vs Match Score</h3>
+        <p className="text-xs text-slate-500 mb-4">Correlation between years of experience and JD match</p>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={expData}>
+            <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fill: "#64748B", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: "#64748B", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ background: "#0D1526", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 8, fontSize: 12, color: "#fff" }} />
+            <Bar dataKey="years" name="Experience (years)" fill="#7C3AED" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="score" name="Match Score %" fill="#06B6D4" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </GlassCard>
+
+      {/* JD Requirements */}
+      <GlassCard className="p-5">
+        <h3 className="text-sm font-semibold text-white mb-4">JD Requirement Coverage</h3>
+        <div className="space-y-3">
+          {[
+            { req: "Python 5+ years", pct: 83, desc: "5 of 6 candidates" },
+            { req: "TensorFlow / PyTorch", pct: 83, desc: "5 of 6 candidates" },
+            { req: "Docker + Kubernetes", pct: 67, desc: "4 of 6 candidates" },
+            { req: "Cloud (AWS/GCP/Azure)", pct: 83, desc: "5 of 6 candidates" },
+            { req: "Airflow / MLOps orchestration", pct: 33, desc: "2 of 6 — biggest gap" },
+            { req: "REST API (FastAPI/Flask)", pct: 67, desc: "4 of 6 candidates" },
+            { req: "NLP / Transformer models", pct: 50, desc: "3 of 6 candidates" },
+          ].map(item => (
+            <div key={item.req}>
+              <div className="flex justify-between text-xs mb-1.5">
+                <span className="text-slate-300">{item.req}</span>
+                <span className="text-slate-500">{item.desc}</span>
+              </div>
+              <ProgressBar value={item.pct} color={item.pct >= 70 ? "#10B981" : item.pct >= 50 ? "#F59E0B" : "#EF4444"} />
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+
+      {/* Pool Summary */}
+      <GlassCard className="p-5 border-purple-500/20">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain size={16} className="text-purple-400" />
+          <h3 className="text-sm font-semibold text-purple-300">AI Pool Summary</h3>
+        </div>
+        <p className="text-sm text-slate-300 leading-relaxed">
+          The candidate pool of 6 shows strong Python and cloud coverage but a notable gap in MLOps orchestration (Airflow / Kubeflow).
+          Aryan Mehta and Priya Sharma are standout choices with &gt;87% match scores. The pool skews toward mid-senior experience (3–6 years).
+          Recommend prioritizing the 3 shortlisted candidates and re-evaluating Dev Patel as an MLOps specialist hire.
+          Skill gap in Airflow suggests targeted onboarding will be needed for any hire.
+        </p>
+      </GlassCard>
+    </div>
+  );
+}
+
+// ─── Settings Page ────────────────────────────────────────────────────────────
+
+function SettingsPage() {
+  const [threshold, setThreshold] = useState(70);
+  const [model, setModel] = useState("all-MiniLM-L6-v2");
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "'Rajdhani', sans-serif" }}>Settings</h1>
+        <p className="text-sm text-slate-400">Configure AI pipeline, scoring thresholds, and notifications</p>
+      </div>
+
+      <GlassCard className="p-5">
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">AI Model Configuration</div>
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm text-slate-300 font-medium block mb-2">Embedding Model</label>
+            <select
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              className="w-full px-3 py-2.5 bg-[#0D1526] border border-white/5 rounded-lg text-sm text-slate-300 focus:outline-none focus:border-purple-500/40"
+            >
+              <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 (fast, recommended)</option>
+              <option value="sentence-transformers/all-mpnet-base-v2">all-mpnet-base-v2 (high accuracy)</option>
+              <option value="BAAI/bge-large-en-v1.5">BGE-Large (best quality, slower)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-slate-300 font-medium block mb-2">
+              Shortlist Threshold: <span className="text-purple-400">{threshold}%</span>
+            </label>
+            <input
+              type="range" min={40} max={95} value={threshold}
+              onChange={e => setThreshold(Number(e.target.value))}
+              className="w-full accent-purple-500"
+            />
+            <div className="flex justify-between text-[10px] text-slate-600 mt-1">
+              <span>40% (Lenient)</span>
+              <span>95% (Strict)</span>
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
+      <GlassCard className="p-5">
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Scoring Weights</div>
+        <div className="space-y-4">
+          {[
+            { label: "Skill Match Weight", value: 40 },
+            { label: "Experience Weight", value: 25 },
+            { label: "Education Weight", value: 15 },
+            { label: "Certification Weight", value: 10 },
+            { label: "Project Quality Weight", value: 10 },
+          ].map(item => (
+            <div key={item.label}>
+              <div className="flex justify-between text-xs mb-1.5">
+                <span className="text-slate-300">{item.label}</span>
+                <span className="text-purple-400 font-medium">{item.value}%</span>
+              </div>
+              <ProgressBar value={item.value} color="#7C3AED" />
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+
+      <GlassCard className="p-5">
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Notifications</div>
+        <div className="space-y-3">
+          {[
+            { label: "Email shortlisted candidates automatically", enabled: false },
+            { label: "Slack notification on new batch completion", enabled: true },
+            { label: "Weekly screening summary report", enabled: true },
+            { label: "Duplicate resume alerts", enabled: true },
+          ].map(item => (
+            <label key={item.label} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/3 cursor-pointer">
+              <span className="text-sm text-slate-300">{item.label}</span>
+              <div className={cn("w-9 h-5 rounded-full border transition-colors relative",
+                item.enabled ? "bg-purple-600 border-purple-600" : "bg-slate-700 border-slate-600")}>
+                <div className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                  item.enabled ? "translate-x-4" : "translate-x-0.5")} />
+              </div>
+            </label>
+          ))}
+        </div>
+      </GlassCard>
+
+      <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-violet-700 text-white text-sm font-semibold hover:from-purple-500 hover:to-violet-600 transition-all shadow-lg shadow-purple-900/40">
+        <CheckCircle size={15} /> Save Configuration
+      </button>
+    </div>
+  );
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [page, setPage] = useState<Page>("upload");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [candidates] = useState<Candidate[]>(CANDIDATES);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [analyzed, setAnalyzed] = useState(false);
+
+  const handleAnalyze = () => {
+    setAnalyzed(true);
+    setPage("dashboard");
+  };
+
+  const sidebarWidth = sidebarCollapsed ? "4rem" : "15rem";
+
+  return (
+    <div className="min-h-screen bg-[#04080F]" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Ambient background */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-600/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-600/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 w-[600px] h-[600px] bg-violet-900/4 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+      </div>
+
+      <Sidebar page={page} setPage={setPage} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+
+      {/* Main */}
+      <div className="transition-all duration-300" style={{ marginLeft: sidebarWidth }}>
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 flex items-center gap-4 px-6 py-4 border-b border-purple-500/8 bg-[#04080F]/80 backdrop-blur-xl">
+          <div className="flex-1">
+            <div className="text-xs text-slate-600 font-mono">
+              Senior ML Engineer · {CANDIDATES.length} resumes · {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {analyzed && (
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                AI analysis complete
+              </span>
+            )}
+            <button className="relative p-2 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors">
+              <Bell size={16} />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-purple-500" />
+            </button>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="p-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={page}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+            >
+              {page === "dashboard" && (
+                <Dashboard candidates={analyzed ? candidates : []} setPage={setPage} setSelectedCandidate={setSelectedCandidate} />
+              )}
+              {page === "upload" && <UploadPage onAnalyze={handleAnalyze} />}
+              {page === "candidates" && (
+                <CandidatesPage candidates={analyzed ? candidates : []} selected={selectedCandidate} setSelected={setSelectedCandidate} />
+              )}
+              {page === "analysis" && <AnalysisPage candidates={analyzed ? candidates : []} />}
+              {page === "settings" && <SettingsPage />}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+    </div>
+  );
+}
